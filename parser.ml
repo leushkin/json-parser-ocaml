@@ -12,6 +12,15 @@ let to_string chars = String.concat "" (List.map (String.make 1) chars)
 
 let lst l = l |> List.length |> ((-) 1) |> List.nth l
 
+let drop l i =
+  let output = ref [] in
+  for index = 0 to List.length l - 1 do
+    if (not (index = i)) then output := !output @ [List.nth l index]
+  done;
+  !output
+
+let drop_last l = drop l (List.length l - 1)
+
 let drop_spaces str =
   let flag = ref false in
   let check_char = function
@@ -21,19 +30,22 @@ let drop_spaces str =
   in
   (List.filter check_char str)
 
-let parse = function
+let parse_exn = function
   | '{' :: [] -> raise (SyntaxError ("Unexpected end of input"))
-  | '{' :: xs when lst xs = '}' -> JsonObject (["", JsonString ""])
+  | '{' :: xs when lst xs = '}' -> ""
   | x :: _    -> raise (SyntaxError ("Unexpected char: " ^ Char.escaped x))
   | []        -> raise (SyntaxError ("Unexpected end of input"))
 
-let parse_json = explode >> drop_spaces >> parse
+let parse_json = explode >> drop_spaces >> parse_exn
 
-let rec json_to_string json =
-  let make_pair (key, value) = "\t" ^ key ^ ", " ^ value ^ ";\n" in
-  let json_to_beautify_string = fun prev (key, value) -> prev ^ make_pair (key, json_to_string value) in
+let rec json_to_string json ~l =
+  let make_pair (key, value) = key ^ ", " ^ value ^ ";" in
+  let json_to_beautify_string l prev (key, value) =
+    let tabs = List.init l (fun _ -> '\t') |> to_string in
+    tabs ^ prev ^ make_pair (key, json_to_string value ~l) ^ "\n"
+  in
   match json with
-  | JsonObject xs -> "JsonObject [\n" ^ List.fold_left json_to_beautify_string "" xs ^ "\n]"
+  | JsonObject xs -> "JsonObject [\n" ^ List.fold_left (json_to_beautify_string l) "" xs ^ "\n]"
   | JsonString x -> "JsonString \"" ^ x ^ "\""
 
 let example = JsonObject [
@@ -45,7 +57,7 @@ let read () =
   print_string "> ";
   print_newline();
   example
-    |> json_to_string
+    |> json_to_string ~l:1
     |> print_string;;
 
 let main =

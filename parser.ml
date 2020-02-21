@@ -80,6 +80,7 @@ let rec json_to_tokens tokens = function
   | xs ->
     let x = List.hd xs in
     let xs = ref (List.tl xs) in
+    let drop_by length = xs := drop !xs length in
     let token = match x with
       | '{' -> LEFT_BRACKET
       | '}' -> RIGHT_BRACKET
@@ -91,10 +92,20 @@ let rec json_to_tokens tokens = function
         let closestCommaIndex = find_index_right tokens COMMA in
         let closestColonIndex = find_index_right tokens COLON in
         let str = take_while !xs ((=)'"') in
-        xs := drop !xs (List.length str + 1);
+        drop_by (List.length str + 1);
         if closestColonIndex > closestCommaIndex
         then STRING (to_string str)
         else KEY (to_string str)
+      | '0'..'9' as n ->
+        let xs' = (n :: !xs) in
+        let value = take_while xs' ((=)',') in
+        let dot = List.find_opt ((=)'.') value in
+        let result = match dot with
+          | Some _ -> FLOAT (float_of_string (to_string value))
+          | None   -> INTEGER (int_of_string (to_string value))
+        in
+        drop_by (List.length value);
+        result
       | _ -> NULL
     in
     json_to_tokens (tokens @ [token]) !xs;;
@@ -109,7 +120,7 @@ let print_tokens l = List.map token_to_string l
   |> List.fold_left (^) ""
   |> print_string
 
-let example = "{ \"key\": \"value\", \"key\": \"value\" }"
+let example = "{ \"key1234\": 11, \"key\": [ { \"a\": [] } ] }"
 
 let read () =
   print_string "> ";

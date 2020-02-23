@@ -46,6 +46,16 @@ let find_index_right l item =
   done;
   !index;;
 
+let take l c =
+  let output = ref [] in
+  print_string (to_string l);
+  print_int (List.length l);
+  print_newline ();
+  for i = 0 to c - 1 do
+    output := !output @ [List.nth l i]
+  done;
+  !output;;
+
 let take_while l p =
   let output = ref [] in
   let flag = ref false in
@@ -106,7 +116,21 @@ let rec json_to_tokens tokens = function
         in
         drop_by (List.length value);
         result
-      | _ -> NULL
+      | _ as c -> (* rewrite this govno code *)
+        let xs' = (c :: !xs) in
+        let literal4 = match to_string (take xs' 4) with
+          | "null" -> Some NULL
+          | "true" -> Some TRUE
+          | _      -> None
+        in
+        let literal5 = match to_string (take xs' 5) with
+          | "false" -> Some FALSE
+          | _       -> None
+        in
+        match (literal4, literal5) with
+          | (Some x, _) -> drop_by 3; x
+          | (_, Some x) -> drop_by 4; x
+          | (_, _)      -> failwith "something went wrong"
     in
     json_to_tokens (tokens @ [token]) !xs;;
 
@@ -120,7 +144,7 @@ let print_tokens l = List.map token_to_string l
   |> List.fold_left (^) ""
   |> print_string
 
-let example = "{ \"key1234\": 11, \"key\": [ { \"a\": [] } ] }"
+let example = "{ \"key1234\": 11, \"key\": null }"
 
 let read () =
   print_string "> ";
